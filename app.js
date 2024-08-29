@@ -4,16 +4,16 @@ const Listing = require("./models/listing");
 const path = require("path");
 const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
-const helmet = require("helmet"); // Security enhancement
-const mongoSanitize = require("express-mongo-sanitize"); // Security enhancement
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
 
 const app = express();
-const Mongo_url = "mongodb://127.0.0.1:27017/Wonderlust"; // Corrected connection string
+const Mongo_url = "mongodb://127.0.0.1:27017/Wonderlust";
 
 // Database connection
 async function main() {
   try {
-    await mongoose.connect(Mongo_url); // Removed deprecated options
+    await mongoose.connect(Mongo_url);
     console.log("Connected to DB successfully");
   } catch (err) {
     console.error("Error connecting to DB:", err.message);
@@ -29,8 +29,18 @@ app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
 app.engine("ejs", ejsMate);
 app.use(express.static(path.join(__dirname, "/public")));
-app.use(helmet()); // Security enhancement
-app.use(mongoSanitize()); // Security enhancement
+app.use(mongoSanitize());
+
+// Custom Helmet CSP configuration
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "https://images.unsplash.com", "data:"],
+      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
+    },
+  })
+);
 
 // Routes
 
