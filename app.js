@@ -6,6 +6,9 @@ const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
 const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
+const wrapAsync = require("./utils/wrapAsync.js");
+const ExpressError = require("./utils/ExpressError.js");
+const listingSchema = require("./schema.js");
 
 const app = express();
 const Mongo_url = "mongodb://127.0.0.1:27017/Wonderlust";
@@ -50,14 +53,13 @@ app.get("/", (req, res) => {
 });
 
 // Index route
-app.get("/listing", async (req, res) => {
-  try {
+app.get(
+  "/listing",
+  wrapAsync(async (req, res) => {
     const alllisting = await Listing.find({});
     res.render("listings/index", { alllisting });
-  } catch (e) {
-    res.status(500).send("Error fetching listings");
-  }
-});
+  })
+);
 
 // New route
 app.get("/listing/new", (req, res) => {
@@ -65,64 +67,70 @@ app.get("/listing/new", (req, res) => {
 });
 
 // Show route
-app.get("/listing/:id", async (req, res) => {
-  try {
+app.get(
+  "/listing/:id",
+  wrapAsync(async (req, res, next) => {
     const id = req.params.id;
     const listing = await Listing.findById(id);
     res.render("listings/show", { listing });
-  } catch (e) {
-    res.status(500).send("Error fetching listing");
-  }
-});
+  })
+);
 
 // Create route
-app.post("/listing", async (req, res) => {
-  try {
+app.post(
+  "/listing",
+  wrapAsync(async (req, res, next) => {
+    let result = listingSchema.validate(req.body);
+    if (result.error) {
+      throw new ExpressError(400, result);
+    }
     const newListing = new Listing(req.body.listing);
     await newListing.save();
     res.redirect("/listing");
-  } catch (e) {
-    res.status(500).send("Error creating listing");
-  }
-});
+  })
+);
 
 // Edit route
-app.get("/listing/:id/edit", async (req, res) => {
-  try {
+app.get(
+  "/listing/:id/edit",
+  wrapAsync(async (req, res) => {
     const id = req.params.id;
     const listing = await Listing.findById(id);
     res.render("listings/edit", { listing });
-  } catch (e) {
-    res.status(500).send("Error fetching listing for edit");
-  }
-});
+  })
+);
 
 // Update route
-app.put("/listing/:id", async (req, res) => {
-  try {
+app.put(
+  "/listing/:id",
+  wrapAsync(async (req, res) => {
+    if (!req.body.listing) {
+      throw new ExpressError(400, "send valid data for listing");
+    }
     const id = req.params.id;
     await Listing.findByIdAndUpdate(id, { ...req.body.listing });
     res.redirect(`/listing/${id}`);
-  } catch (e) {
-    res.status(500).send("Error updating listing");
-  }
-});
+  })
+);
 
 // Delete route
-app.delete("/listing/:id", async (req, res) => {
-  try {
+app.delete(
+  "/listing/:id",
+  wrapAsync(async (req, res) => {
     const id = req.params.id;
     await Listing.findByIdAndDelete(id);
     res.redirect("/listing");
-  } catch (e) {
-    res.status(500).send("Error deleting listing");
-  }
-});
+  })
+);
 
 // Error handling middleware
+app.all("*", (req, res, next) => {
+  next(new ExpressError(404, "Page not found !"));
+});
+
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Something went wrong!");
+  const { statusCode = 500, message = "Something went wrong" } = err;
+  res.status(statusCode).render("error", { message, err });
 });
 
 // Server
