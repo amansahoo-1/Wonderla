@@ -52,15 +52,16 @@ app.get("/", (req, res) => {
   res.send("Hi, I am root");
 });
 
-const validateListing(req,res,next) => {
-  let (error) = listingSchema.validate(req.body);
+// Validation middleware for listings
+const validateListing = (req, res, next) => {
+  const { error } = listingSchema.validate(req.body);
   if (error) {
-    let errMsg = error.details.map((el) => el.message).join(",");
-    throw new ExpressError(400,errMsg);
+    const errMsg = error.details.map((el) => el.message).join(",");
+    throw new ExpressError(400, errMsg);
   } else {
     next();
   }
-}
+};
 
 // Index route
 app.get(
@@ -88,10 +89,9 @@ app.get(
 
 // Create route
 app.post(
-  "/listing", 
+  "/listing",
   validateListing,
   wrapAsync(async (req, res, next) => {
-   
     const newListing = new Listing(req.body.listing);
     await newListing.save();
     res.redirect("/listing");
