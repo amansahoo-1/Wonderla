@@ -4,8 +4,8 @@ const Schema = mongoose.Schema;
 const listingSchema = new Schema({
   title: {
     type: String,
-    required: true, // Ensures that the title is a required field
-    default: "Untitled Listing", // Default title if none is provided
+    required: true,
+    default: "Untitled Listing",
   },
   description: {
     type: String,
@@ -21,13 +21,24 @@ const listingSchema = new Schema({
   },
   price: {
     type: Number,
+    min: [0, "Price must be a positive number"],
+    required: true,
   },
   location: {
     type: String,
+    required: true,
   },
   country: {
     type: String,
+    required: true,
   },
+  // New reviews field
+  reviews: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "Review", // Reference to Review model
+    },
+  ],
 });
 
 const Listing = mongoose.model("Listing", listingSchema);
