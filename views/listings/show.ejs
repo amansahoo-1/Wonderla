@@ -42,19 +42,24 @@
             </form>
 
             <hr>
-            <p><b>All Reviews</b</p>
-            <div class="row">
+            <p><b>All Reviews</b></p>
+            <div class="row"> <!-- Added row here to wrap the review cards properly -->
 
             <% for(review of listing.reviews) { %>
-                <div class="card col-5 mb-3 ms-3">
-                    <div class="card-body">
-                        <h5 class="card-title">Aman Sahoo</h5>
-                        <p class="card-text"><%= review.comment %></p>
-                        <p class="card-text"><%= review.rating %> stars</p>
+                <div class="col-6 mb-3"> <!-- Ensure col-6 is inside a .row -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Aman Sahoo</h5>
+                            <p class="card-text"><%= review.comment %></p>
+                            <p class="card-text"><%= review.rating %> stars</p>
+                        </div>
+                        <form class="mb-3" method="post" action="/listing/<%= listing._id %>/reviews/<%= review._id %>?_method=DELETE">
+                            <button class="btn btn-sm btn-dark">Delete</button>
+                        </form>
                     </div>
                 </div>
-                <% } %>
-            </div>
+            <% } %>
+            </div> <!-- End of row -->
         </div>
     </div> 
 </body>
