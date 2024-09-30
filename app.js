@@ -6,6 +6,8 @@ const ejsMate = require("ejs-mate");
 const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const ExpressError = require("./utils/ExpressError");
+const session = require("express-session");
+const flash = require("connect-flash");
 
 //requiring listings and reviews from routes
 const listings = require("./routes/listing");
@@ -46,9 +48,32 @@ app.use(
   })
 );
 
+//cookie
+
+const sessionOptions = {
+  secret: "mysupersecretcode",
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+  },
+};
+
 // Root route
 app.get("/", (req, res) => {
   res.send("Hi, I am root");
+});
+
+app.use(session(sessionOptions));
+app.use(flash());
+
+app.use((req, res, next) => {
+  res.locals.success = req.flash("success");
+  res.locals.error = req.flash("error");
+  // console.log(res.locals.success);
+  next();
 });
 
 app.use("/listing", listings);
