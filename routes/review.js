@@ -1,29 +1,19 @@
 const express = require("express");
 const router = express.Router({ mergeParams: true });
 const wrapAsync = require("../utils/wrapAsync");
-const ExpressError = require("../utils/ExpressError");
-const { reviewSchema } = require("../schema");
 const Review = require("../models/review");
 const Listing = require("../models/listing");
-
-// Validation middleware for reviews
-const validateReview = (req, res, next) => {
-  const { error } = reviewSchema.validate(req.body);
-  if (error) {
-    const errMsg = error.details.map((el) => el.message).join(",");
-    throw new ExpressError(400, errMsg);
-  }
-  next();
-};
+const { validateReview, isLoggedIn, isReviewAuthor } = require("../middleware");
 
 // Reviews Post Route
 router.post(
   "/",
+  isLoggedIn,
   validateReview,
   wrapAsync(async (req, res) => {
-    console.log(req.params.id);
     const listing = await Listing.findById(req.params.id);
     const newReview = new Review(req.body.review);
+    newReview.author = req.user._id;
     listing.reviews.push(newReview);
     await newReview.save();
     await listing.save();
@@ -35,6 +25,8 @@ router.post(
 //delete review Route
 router.delete(
   "/:reviewId", // Corrected the missing leading slash here
+  isLoggedIn,
+  isReviewAuthor,
   wrapAsync(async (req, res) => {
     let { id, reviewId } = req.params;
     await Listing.findByIdAndUpdate(id, { $pull: { reviews: reviewId } });

@@ -1,30 +1,14 @@
 const express = require("express");
 const wrapAsync = require("../utils/wrapAsync");
-const { listingSchema, reviewSchema } = require("../schema");
-const ExpressError = require("../utils/ExpressError");
 const Listing = require("../models/listing");
 const Review = require("../models/review");
 const router = express.Router({ mergeParams: true });
-
-// Validation middleware for listings
-const validateListing = (req, res, next) => {
-  const { error } = listingSchema.validate(req.body);
-  if (error) {
-    const errMsg = error.details.map((el) => el.message).join(",");
-    throw new ExpressError(400, errMsg);
-  }
-  next();
-};
-
-// Validation middleware for reviews
-const validateReview = (req, res, next) => {
-  const { error } = reviewSchema.validate(req.body);
-  if (error) {
-    const errMsg = error.details.map((el) => el.message).join(",");
-    throw new ExpressError(400, errMsg);
-  }
-  next();
-};
+const {
+  isLoggedIn,
+  isOwner,
+  validateListing,
+  validateReview,
+} = require("../middleware");
 
 // Index route - Fetch all listings
 router.get(
@@ -36,7 +20,7 @@ router.get(
 );
 
 // New route - Render form for creating a new listing
-router.get("/new", (req, res) => {
+router.get("/new", isLoggedIn, (req, res) => {
   res.render("listings/new");
 });
 
@@ -45,11 +29,12 @@ router.get(
   "/:id",
   wrapAsync(async (req, res, next) => {
     const id = req.params.id;
-    const listing = await Listing.findById(id).populate("reviews");
+    const listing = await Listing.findById(id)
+      .populate({ path: "reviews", populate: { path: "author" } })
+      .populate("owner");
     if (!listing) {
       req.flash("error", "Listing you requested for does not exist");
-      // throw new ExpressError(404, "Listing not found");
-      res.redirect("/listings");
+      throw new ExpressError(404, "Listing not found");
     }
     res.render("listings/show", { listing });
   })
@@ -58,11 +43,13 @@ router.get(
 // Create route - Create a new listing
 router.post(
   "/",
+  isLoggedIn,
   validateListing,
   wrapAsync(async (req, res) => {
     const newListing = new Listing(req.body.listing);
+    newListing.owner = req.user._id;
     await newListing.save();
-    req.flash("success", "New Listing Created! ");
+    req.flash("success", "New Listing Created!");
     res.redirect("/listing");
   })
 );
@@ -70,13 +57,14 @@ router.post(
 // Edit route - Render form for editing a listing
 router.get(
   "/:id/edit",
+  isLoggedIn,
+  isOwner,
   wrapAsync(async (req, res) => {
     const id = req.params.id;
     const listing = await Listing.findById(id);
     if (!listing) {
       req.flash("error", "Listing you requested for does not exist");
-      // throw new ExpressError(404, "Listing not found");
-      res.redirect("/listings");
+      throw new ExpressError(404, "Listing not found");
     }
     res.render("listings/edit", { listing });
   })
@@ -85,11 +73,13 @@ router.get(
 // Update route - Update an existing listing
 router.put(
   "/:id",
-  validateListing,
+  isLoggedIn, // Authentication check first
+  isOwner, // Ownership check
+  validateListing, // Validate listing after checks
   wrapAsync(async (req, res) => {
-    const id = req.params.id;
+    let { id } = req.params;
     await Listing.findByIdAndUpdate(id, { ...req.body.listing });
-    req.flash("success", "Listing Updated! ");
+    req.flash("success", "Listing Updated!");
     res.redirect(`/listing/${id}`);
   })
 );
@@ -97,10 +87,12 @@ router.put(
 // Delete route - Delete a listing and associated reviews
 router.delete(
   "/:id",
+  isLoggedIn,
+  isOwner,
   wrapAsync(async (req, res) => {
     const id = req.params.id;
     await Listing.findByIdAndDelete(id);
-    req.flash("success", "Listing Deleted! ");
+    req.flash("success", "Listing Deleted!");
     res.redirect("/listing");
   })
 );
@@ -115,6 +107,7 @@ router.post(
     listing.reviews.push(newReview);
     await newReview.save();
     await listing.save();
+    req.flash("success", "Review added successfully!");
     res.redirect(`/listing/${listing._id}`);
   })
 );
@@ -126,6 +119,7 @@ router.delete(
     const { id, reviewId } = req.params;
     await Listing.findByIdAndUpdate(id, { $pull: { reviews: reviewId } });
     await Review.findByIdAndDelete(reviewId);
+    req.flash("success", "Review deleted successfully!");
     res.redirect(`/listing/${id}`);
   })
 );
